@@ -4,12 +4,7 @@ const std = @import("std");
 // Zig Imports
 const regex = @cImport(@cInclude("regex.h"));
 
-pub const DNSRecord = struct {
-    name: []u8,
-    type: []u8,
-    address: []u8,
-    ttl: u32,
-};
+pub const DNSRecord = struct { name: []u8, type: []u8, address: []u8 };
 
 pub fn GetMXRecord(allocator: *const std.mem.Allocator, domain: []const u8) !?DNSRecord {
     var alloc: std.mem.Allocator = @constCast(allocator);
@@ -47,9 +42,14 @@ pub fn GetMXRecord(allocator: *const std.mem.Allocator, domain: []const u8) !?DN
     iter.index = iter.index.? + 1;
 
     var field = iter.next().?;
+    var reg: regex.regex_t = null;
+    _ = regex.regcomp(&reg, "^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", 0);
+    var found = regex.regexec(&reg, field, 0, null, 0);
 
-
-    if ()
+    if (found == 0) {
+        var x: DNSRecord = .{ .name = domain + " MX Record", .type = "MX", .address = field };
+        return x;
+    }
 
     const thread2: std.ChildProcess = std.ChildProcess.init(.{ "dig", field, "+noall +answer +short" }, alloc) catch |err| {
         std.log.warn("DNS Dig Command Initialisation", .{});
@@ -60,4 +60,6 @@ pub fn GetMXRecord(allocator: *const std.mem.Allocator, domain: []const u8) !?DN
 
     const bytes_ip: []u8 = try thread2.stdout.?.reader().readAllAlloc(alloc, max_output_size);
     errdefer alloc.free(bytes_ip);
+
+    return DNSRecord{ .name = domain + " MX Record", .type = "MX", .address = bytes_ip };
 }
