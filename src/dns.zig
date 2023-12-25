@@ -1,25 +1,24 @@
 // Zig Imports
 const std = @import("std");
 
-// Zig Imports
-const regex = @cImport(@cInclude("regex.h"));
+// C Imports
+const re = @cImport(@cInclude("regez.h"));
 
 pub const DNSRecord = struct { name: []u8, type: []u8, address: []u8 };
 
 pub fn GetMXRecord(allocator: *const std.mem.Allocator, domain: []const u8) !?DNSRecord {
-    var alloc: std.mem.Allocator = @constCast(allocator);
+    var alloc: std.mem.Allocator = allocator.*;
 
-    const thread: std.ChildProcess = std.ChildProcess.init(.{ "dig", domain, "MX +noall +answer +short" }, alloc) catch |err| {
-        std.log.warn("DNS Dig Command Initialisation Failed\n", .{});
+    var thread: std.ChildProcess = std.ChildProcess.init(&.{ "dig", domain, "MX +noall +answer +short" }, alloc);
+
+    thread.stdout_behavior = .Pipe;
+    thread.spawn() catch |err| {
         return err;
     };
 
-    thread.stdout_behavior = .Pipe;
-    thread.spawn();
-
     const max_output_size = 100 * 1024 * 1024;
 
-    const bytes: []u8 = try thread.stdout.?.reader().readAllAlloc(alloc, max_output_size);
+    const bytes: []const u8 = try thread.stdout.?.reader().readAllAlloc(alloc, max_output_size);
     errdefer alloc.free(bytes);
 
     const term = try thread.wait();
@@ -28,12 +27,12 @@ pub fn GetMXRecord(allocator: *const std.mem.Allocator, domain: []const u8) !?DN
         .Exited => |code| {
             if (code != 0) {
                 std.log.warn("DNS MX Query Failed With Code: {any}", .{code});
-                return .{};
+                return null;
             }
         },
         else => {
-            std.log.warn("The following command terminated unexpectedly:\n", .{});
-            return .{};
+            std.log.warn("DNS MX Query Failed To Resolve", .{});
+            return null;
         },
     }
 
@@ -41,25 +40,49 @@ pub fn GetMXRecord(allocator: *const std.mem.Allocator, domain: []const u8) !?DN
 
     iter.index = iter.index.? + 1;
 
-    var field = iter.next().?;
-    var reg: regex.regex_t = null;
-    _ = regex.regcomp(&reg, "^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", 0);
-    var found = regex.regexec(&reg, field, 0, null, 0);
+    const field = iter.next().?;
+    const input: [*:0]u8 = @ptrCast(@constCast(field));
+    var found: bool = re.isIP(@constCast(input));
 
-    if (found == 0) {
-        var x: DNSRecord = .{ .name = domain + " MX Record", .type = "MX", .address = field };
+    var name = std.mem.concat(alloc, u8, &.{ domain, " MX Record" }) catch |err| {
+        return err;
+    };
+    defer alloc.free(name);
+
+    if (found) {
+        var x: DNSRecord = .{ .name = name, .type = @constCast("MX"), .address = @constCast(field) };
         return x;
     }
 
-    const thread2: std.ChildProcess = std.ChildProcess.init(.{ "dig", field, "+noall +answer +short" }, alloc) catch |err| {
-        std.log.warn("DNS Dig Command Initialisation", .{});
-        return err;
-    };
+    var thread2: std.ChildProcess = std.ChildProcess.init(&.{ "dig", field, "+noall +answer +short" }, alloc);
 
     thread2.stdout_behavior = .Pipe;
 
+    thread2.spawn() catch |err| {
+        return err;
+    };
+
     const bytes_ip: []u8 = try thread2.stdout.?.reader().readAllAlloc(alloc, max_output_size);
     errdefer alloc.free(bytes_ip);
+    const term2 = try thread2.wait();
+    _ = term2;
 
-    return DNSRecord{ .name = domain + " MX Record", .type = "MX", .address = bytes_ip };
+    switch (term) {
+        .Exited => |code| {
+            if (code != 0) {
+                std.log.warn("DNS CNAME Query Failed With Code: {any}", .{code});
+                return null;
+            }
+        },
+        else => {
+            std.log.warn("DNS CNAME Query Failed To Resolve", .{});
+        },
+    }
+
+    return DNSRecord{ .name = name, .type = @constCast("MX"), .address = bytes_ip };
+}
+
+test "MX Record Testing" {
+    var testing = try GetMXRecord(&std.testing.allocator, "gmail.com");
+    try std.testing.expect(testing != null);
 }

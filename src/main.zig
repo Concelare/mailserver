@@ -1,19 +1,18 @@
 const std = @import("std");
+const re = @cImport(@cInclude("regez.h"));
+const dnsresolver = @import("dns.zig");
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    const domain: []const u8 = "unnoticed.dev";
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator: std.mem.Allocator = gpa.allocator();
+    const ip = dnsresolver.GetMXRecord(&allocator, @constCast(domain)) catch |err| {
+        std.log.debug("Err Occurred {any}", .{err});
+        return;
+    };
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
-
-    try bw.flush(); // don't forget to flush!
+    std.log.debug("Error Occurred {any}", .{ip.?.address});
+    return;
 }
 
 test "simple test" {
