@@ -24,6 +24,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const regex_dep = b.dependency("regex", .{
+        .target = exe.target,
+    });
+    exe.addModule("regex", regex_dep.module("regex"));
+
     exe.addIncludePath(.{ .path = "src" });
     exe.addCSourceFile(.{ .file = .{ .path = "src/regez.c" }, .flags = &.{} });
     exe.linkLibC();
