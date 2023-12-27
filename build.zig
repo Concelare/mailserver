@@ -30,7 +30,6 @@ pub fn build(b: *std.Build) void {
     exe.addModule("regex", regex_dep.module("regex"));
 
     exe.addIncludePath(.{ .path = "src" });
-    exe.addCSourceFile(.{ .file = .{ .path = "src/regez.c" }, .flags = &.{} });
     exe.linkLibC();
 
     // This declares intent for the executable to be installed into the
