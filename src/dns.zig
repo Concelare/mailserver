@@ -7,9 +7,7 @@ const re = @cImport(@cInclude("regez.h"));
 
 pub const DNSRecord = struct { name: []u8, type: []u8, address: []u8 };
 
-pub fn GetMXRecord(allocator: *const std.mem.Allocator, domain: []const u8) !DNSRecord {
-    var alloc: std.mem.Allocator = allocator.*;
-
+pub fn get_mx_record(alloc: std.mem.Allocator, domain: []const u8) !DNSRecord {
     var thread: std.ChildProcess = std.ChildProcess.init(&.{ "dig", domain, "MX", "+noall", "+answer", "+short" }, alloc);
 
     thread.stdout_behavior = .Pipe;
