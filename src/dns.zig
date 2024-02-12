@@ -2,9 +2,6 @@
 const std = @import("std");
 const regex = @import("regex").Regex;
 
-// C Imports
-const re = @cImport(@cInclude("regez.h"));
-
 pub const DNSRecord = struct { name: []u8, type: []u8, address: []u8 };
 
 pub fn get_mx_record(alloc: std.mem.Allocator, domain: []const u8) !DNSRecord {
@@ -38,21 +35,21 @@ pub fn get_mx_record(alloc: std.mem.Allocator, domain: []const u8) !DNSRecord {
     var iter = std.mem.splitSequence(u8, bytes, " ");
     iter.index = 3;
 
-    var testing: []const u8 = iter.next().?;
+    var mx_response: []const u8 = iter.next().?;
 
-    testing = testing[0 .. testing.len - 2];
+    mx_response = mx_response[0 .. mx_response.len - 2];
 
     var value = try regex.compile(alloc, "([0-9])\\.([0-9])\\.([0-9])\\.([0-9])");
     defer value.deinit();
 
-    const found = try regex.match(&value, testing);
+    const found = try regex.match(&value, mx_response);
 
     if (found) {
-        var x: DNSRecord = .{ .name = @constCast(domain), .type = @constCast("MX"), .address = @constCast(testing) };
+        var x: DNSRecord = .{ .name = @constCast(domain), .type = @constCast("MX"), .address = @constCast(mx_response) };
         return x;
     }
 
-    var thread2: std.ChildProcess = std.ChildProcess.init(&.{ "dig", testing, "+noall", "+answer", "+short" }, alloc);
+    var thread2: std.ChildProcess = std.ChildProcess.init(&.{ "dig", mx_response, "+noall", "+answer", "+short" }, alloc);
 
     thread2.stdout_behavior = .Pipe;
 
@@ -60,8 +57,8 @@ pub fn get_mx_record(alloc: std.mem.Allocator, domain: []const u8) !DNSRecord {
         return err;
     };
 
-    var bytes_ip: []u8 = try thread2.stdout.?.reader().readAllAlloc(alloc, max_output_size);
-    errdefer alloc.free(bytes_ip);
+    var cname_response: []u8 = try thread2.stdout.?.reader().readAllAlloc(alloc, max_output_size);
+    errdefer alloc.free(cname_response);
     const term2 = try thread2.wait();
 
     switch (term2) {
@@ -77,12 +74,12 @@ pub fn get_mx_record(alloc: std.mem.Allocator, domain: []const u8) !DNSRecord {
         },
     }
 
-    bytes_ip = bytes_ip[0 .. bytes_ip.len - 1];
+    cname_response = cname_response[0 .. cname_response.len - 1];
 
-    return .{ .name = @constCast(domain), .type = @constCast("MX"), .address = bytes_ip };
+    return .{ .name = @constCast(domain), .type = @constCast("MX"), .address = cname_response };
 }
 
 test "MX Record Testing" {
-    var testing = try GetMXRecord(&std.testing.allocator, "gmail.com");
+    var testing = try get_mx_record(&std.testing.allocator, "gmail.com");
     try std.testing.expect(testing != null);
 }

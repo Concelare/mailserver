@@ -4,8 +4,8 @@ const dnsresolver = @import("dns.zig");
 pub fn main() !void {
     const domain: []const u8 = "unnoticed.dev";
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator: std.mem.Allocator = gpa.allocator();
-    var ip = dnsresolver.get_mx_record(&allocator, @constCast(domain)) catch |err| {
+    var allocator: std.mem.Allocator = gpa.allocator();
+    var ip = dnsresolver.get_mx_record(allocator, @constCast(domain)) catch |err| {
         std.log.err("{any}", .{err});
         return;
     };
