@@ -3,11 +3,11 @@ const std = @import("std");
 pub const Encryption = enum { plain, tls, start_tls };
 
 pub const Config = struct {
-    hostname: []const u8 = "unknown",
-    require_tls: bool = true,
-    certs: []const u8 = "./certs",
-    encryption: Encryption = Encryption.tls,
-    timeout: i32 = 10_000,
+    hostname: []const u8,
+    require_tls: bool,
+    certs: []const u8,
+    encryption: Encryption,
+    timeout: i32,
 
     pub fn init(allocator: std.mem.Allocator) !Config {
         std.fs.cwd().access("config.json", .{}) catch |err| {

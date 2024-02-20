@@ -34,7 +34,6 @@ pub const TlsStream = struct {
     }
 
     pub fn start_tls(allocator: std.mem.Allocator, stream: std.net.Stream, config: Config.Config) !TlsStream {
-        _ = config;
         var bundle = std.crypto.Certificate.Bundle{};
 
         std.crypto.Certificate.Bundle.addCertsFromDirPath(&bundle, allocator, std.fs.cwd(), "certs") catch |err| {
@@ -42,6 +41,25 @@ pub const TlsStream = struct {
             return err;
         };
 
+        stream.writeAll("EHLO");
+
         stream.writeAll("STARTTLS");
+
+        var client = std.crypto.tls.Client.init(stream, bundle, config.host) catch |err| {
+            std.log.err("Error Occurred Initialising STARTTLS Client", .{});
+            return err;
+        };
+
+        var tlsStream: TlsStream = TlsStream{
+            .allocator = allocator,
+            .certs = bundle,
+            .stream = stream,
+            .client = client,
+        };
+
+        return tlsStream;
     }
+
+    pub fn writeAll(message: []u8) !void {
+        _ = message;}
 };

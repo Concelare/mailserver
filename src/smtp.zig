@@ -134,20 +134,40 @@ pub fn send_message_tls(allocator: std.mem.Allocator, recipient: []u8, sender: [
         return err;
     };
 
-    const connection = std.net.tcpConnectToHost(allocator, record.address, 587) catch |err| {
-        std.log.err("Failed To Open TCP Connection To {any}", record.address);
-        return err;
-    };
-
     const config = Config.Config.init(allocator) catch |err| {
         std.log.err("Failed to Load Config, Sending Mail To {any}", .{recipient});
         return err;
     };
 
-    var tls_stream = tls.TlsStream.to_tls(allocator, connection, config) catch |err| {
-        std.log.err("Error Occurred Initialising TLS Connection with {any}", .{record.address});
-        return err;
-    };
+    var tls_stream: ?tls.TlsStream = null;
+    if (config.encryption == Config.Encryption.tls) {
+        const connection = std.net.tcpConnectToHost(allocator, record.address, 465) catch |err| {
+            std.log.err("Failed To Open TCP Connection To {any}", record.address);
+            return err;
+        };
 
-    tls_stream.client.writeAll(tls_stream.stream, "EHLO");
+        tls_stream = tls.TlsStream.to_tls(allocator, connection, config) catch |err| {
+            std.log.err("Error Occurred Initialising TLS Connection with {any}", .{record.address});
+            return err;
+        };
+    }
+
+    if (config.encryption == Config.Encryption.start_tls) {
+        const connection = std.net.tcpConnectToHost(allocator, record.address, 587) catch |err| {
+            std.log.err("Failed To Open TCP Connection To {any}", record.address);
+            return err;
+        };
+
+        tls_stream = tls.TlsStream.start_tls(allocator, connection, config) catch |err| {
+            std.log.err("Error Occurred Initialising TLS Connection with {any}", .{record.address});
+            return err;
+        };
+    }
+
+    if (tls_stream == null) {
+        std.log.err("Error Occurred Initialising TLS Connection with {any}", .{record.address});
+        return;
+    }
+
+    tls_stream.?.client.writeAll("");
 }

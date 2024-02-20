@@ -1,2 +1,3 @@
 # Ignore Zig Cache
 zig-cache/
+.idea/
