@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
     // for restricting supported target set are available.
-    const target = b.standardTargetOptions(.{});
+    const target = b.standardTargetOptions(.{ .default_target = .{} });
 
     // Standard optimization options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
@@ -24,11 +24,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const regex_dep = b.dependency("regex", .{
-        .target = exe.target,
-    });
-    exe.addModule("regex", regex_dep.module("regex"));
+    const regex_dep = b.dependency("regex", .{ .target = target, .optimize = optimize });
 
+    exe.root_module.addImport("regex", regex_dep.module("regex"));
+
+    const pg = b.dependency("pg", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("pg", pg.module("pg"));
     exe.addIncludePath(.{ .path = "src" });
     exe.linkLibC();
 

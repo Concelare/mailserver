@@ -4,10 +4,13 @@
 
     .dependencies = .{
         .regex = .{
-            .url = "https://github.com/Rexicon226/zig-regex/archive/e344ee874317f14830cf9366c3fe11d891a779e1.tar.gz",
-            .hash = "122012d5e72dd23d759bc41170c6820e8e163d50f729c4d60efcfc3ec7bd94b5b119",
+            .url = "https://github.com/tiehuis/zig-regex/archive/825181369f30bc0d0554d9d330d34db4162b91e5.tar.gz",
+            .hash = "122090c3c6b4a8745fb22e721ae4e2e55b73347769696fd84170c660fe16c1f062e6",        
         },
+        .pg = .{
+            .url = "https://github.com/karlseguin/pg.zig/archive/382fdd25484ec3d3f73da23c4830ee7f48c0f0bb.tar.gz",
+            .hash = "12207f9d37f48f14e8891846a00412c659a763acf44bf3f4c559610fa5632597537c"
+        }
     },
-
     .paths = .{""},
 }

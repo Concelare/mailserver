@@ -45,7 +45,7 @@ pub fn get_mx_record(alloc: std.mem.Allocator, domain: []const u8) !DNSRecord {
     const found = try regex.match(&value, mx_response);
 
     if (found) {
-        var x: DNSRecord = .{ .name = @constCast(domain), .type = @constCast("MX"), .address = @constCast(mx_response) };
+        const x: DNSRecord = .{ .name = @constCast(domain), .type = @constCast("MX"), .address = @constCast(mx_response) };
         return x;
     }
 
@@ -74,12 +74,12 @@ pub fn get_mx_record(alloc: std.mem.Allocator, domain: []const u8) !DNSRecord {
         },
     }
 
-    cname_response = cname_response[0 .. cname_response.len - 1];
+    cname_response = cname_response[0 .. cname_response.len - 2];
 
     return .{ .name = @constCast(domain), .type = @constCast("MX"), .address = cname_response };
 }
 
 test "MX Record Testing" {
-    var testing = try get_mx_record(&std.testing.allocator, "gmail.com");
+    const testing = try get_mx_record(&std.testing.allocator, "gmail.com");
     try std.testing.expect(testing != null);
 }

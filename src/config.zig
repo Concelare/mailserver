@@ -11,13 +11,26 @@ pub const Config = struct {
 
     pub fn init(allocator: std.mem.Allocator) !Config {
         std.fs.cwd().access("config.json", .{}) catch |err| {
-            std.log.info("Config file not found, Created Config File Please fill in", .{});
+            std.log.err("Config file not found, Created Config File Please fill in", .{});
             switch (err) {
                 error.FileNotFound => {
-                    std.fs.cwd().createFile("config.json", .{ .exclusive = true }) catch |cerr| {
+                    var file = std.fs.cwd().createFile("config.json", .{ .exclusive = true }) catch |cerr| {
                         std.log.info("Failed to Create Config File", .{});
                         return cerr;
                     };
+
+                    const default: Config = .{ .hostname = "unknown", .require_tls = false, .certs = "set path", .encryption = .plain, .timeout = 10_000 };
+
+                    var string = std.ArrayList(u8).init(allocator);
+                    defer string.deinit();
+
+                    try std.json.stringify(default, .{}, string.writer());
+
+                    try file.writeAll(string.items);
+                    return err;
+                },
+                else => {
+                    std.log.err("Unknown Error Occurred Reading Config", .{});
                     return err;
                 },
             }
@@ -29,7 +42,7 @@ pub const Config = struct {
         };
         defer allocator.free(data);
 
-        var config = std.json.parseFromSlice(Config, allocator, data, .{ .allocate = .alloc_always }) catch |err| {
+        const config = std.json.parseFromSlice(Config, allocator, data, .{ .allocate = .alloc_always }) catch |err| {
             std.log.err("Failed to parse config.", .{});
             return err;
         };
