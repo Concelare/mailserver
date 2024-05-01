@@ -24,10 +24,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Adds the Regex Dependancy
     const regex_dep = b.dependency("regex", .{ .target = target, .optimize = optimize });
 
     exe.root_module.addImport("regex", regex_dep.module("regex"));
 
+    // Adds the Postgres Dependency
     const pg = b.dependency("pg", .{
         .target = target,
         .optimize = optimize,
