@@ -5,20 +5,27 @@ const regex = @import("regex").Regex;
 pub const DNSRecord = struct { name: []u8, type: []u8, address: []u8 };
 
 pub fn get_mx_record(alloc: std.mem.Allocator, domain: []const u8) !DNSRecord {
+    // Initialise thread for dns request
     var thread: std.ChildProcess = std.ChildProcess.init(&.{ "dig", domain, "MX", "+noall", "+answer", "+short" }, alloc);
 
+    // Sets thread behavior
     thread.stdout_behavior = .Pipe;
     thread.spawn() catch |err| {
         return err;
     };
 
+    // Max buffer Size
     const max_output_size = 100 * 1024 * 1024;
 
+    // Read Thread Output
     const bytes: []const u8 = try thread.stdout.?.reader().readAllAlloc(alloc, max_output_size);
     errdefer alloc.free(bytes);
     defer alloc.free(bytes);
+
+    // Wait for thread to end
     const term = try thread.wait();
 
+    // Handle Exit State
     switch (term) {
         .Exited => |code| {
             if (code != 0) {
@@ -32,12 +39,13 @@ pub fn get_mx_record(alloc: std.mem.Allocator, domain: []const u8) !DNSRecord {
         },
     }
 
+    // Split Response
     var iter = std.mem.splitSequence(u8, bytes, " ");
 
-    std.log.debug("{any}", .{iter.peek()});
     if (iter.peek() == null) {
         return DNSRecord{ .name = "", .type = "", .address = "" };
     }
+    // Skips to correct value
     iter.index = 3;
 
     var mx_response: []const u8 = iter.next().?;
@@ -54,6 +62,7 @@ pub fn get_mx_record(alloc: std.mem.Allocator, domain: []const u8) !DNSRecord {
         return x;
     }
 
+    // Same as first thread
     var thread2: std.ChildProcess = std.ChildProcess.init(&.{ "dig", mx_response, "+noall", "+answer", "+short" }, alloc);
 
     thread2.stdout_behavior = .Pipe;
