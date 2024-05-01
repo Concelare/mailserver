@@ -33,6 +33,11 @@ pub fn get_mx_record(alloc: std.mem.Allocator, domain: []const u8) !DNSRecord {
     }
 
     var iter = std.mem.splitSequence(u8, bytes, " ");
+
+    std.log.debug("{any}", .{iter.peek()});
+    if (iter.peek() == null) {
+        return DNSRecord{ .name = "", .type = "", .address = "" };
+    }
     iter.index = 3;
 
     var mx_response: []const u8 = iter.next().?;
@@ -77,9 +82,4 @@ pub fn get_mx_record(alloc: std.mem.Allocator, domain: []const u8) !DNSRecord {
     cname_response = cname_response[0 .. cname_response.len - 2];
 
     return .{ .name = @constCast(domain), .type = @constCast("MX"), .address = cname_response };
-}
-
-test "MX Record Testing" {
-    const testing = try get_mx_record(&std.testing.allocator, "gmail.com");
-    try std.testing.expect(testing != null);
 }

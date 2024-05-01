@@ -11,7 +11,7 @@ const fs = std.fs;
 const io = std.io;
 const heap = std.heap;
 
-const Command = enum {
+pub const Command = enum {
     Login,
     Select,
     Fetch,
@@ -71,7 +71,7 @@ fn imapHandshake(connection: std.net.Server.Connection, pool: pg.Pool, allocator
         }
 
         // Parse Client Request
-        const request_args = parseCommand(line);
+        const request_args = try parseCommand(line, allocator);
 
         // Handle Client Request Based On Command Found
         switch (request_args.command) {
@@ -149,27 +149,22 @@ fn imapHandshake(connection: std.net.Server.Connection, pool: pg.Pool, allocator
     }
 }
 
-fn parseCommand(input: []const u8) struct { command: Command, tokens: []const u8 } {
+pub fn parseCommand(input: []const u8, allocator: *std.mem.Allocator) !struct { command: Command, tokens: ?[][]const u8 } {
     var command = Command.Unknown;
 
-    // split input by whitespace
-    var tokens = []const u8{};
-    var token = std.mem.span(input, 0, 0);
-    for (input) |byte| {
-        if (byte == ' ') {
-            tokens = tokens ++ .{token};
-            token = std.mem.span(input + 1, 0, 0);
-        } else {
-            token = token[0..] ++ byte;
-        }
+    var tokens = std.mem.splitSequence(u8, input, " ");
+
+    if (tokens.peek() == null) return .{ .command = command, .tokens = null };
+
+    command = std.meta.stringToEnum(Command, tokens.next().?) orelse Command.Unknown;
+
+    var arraylist = std.ArrayList([]const u8).init(allocator.*);
+    while (tokens.next()) |token| {
+        try arraylist.append(token);
     }
-    tokens = tokens ++ .{token};
 
-    if (tokens.len == 0) return command;
-
-    command = std.meta.stringToEnum(Command, tokens[0]) orelse Command.Unknown;
-
-    return .{ .command = command, .tokens = tokens };
+    const slice = try arraylist.toOwnedSlice();
+    return .{ .command = command, .tokens = slice };
 }
 
 fn getHighestModSeq(mailboxName: []const u8, allocator: std.mem.Allocator) !u64 {
